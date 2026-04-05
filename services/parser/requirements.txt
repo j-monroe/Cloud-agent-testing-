@@ -1,0 +1,9 @@
+redis==5.0.4
+structlog==24.1.0
+pydantic==2.7.1
+pydantic-settings==2.2.1
+sqlalchemy==2.0.30
+asyncpg==0.29.0
+tenacity==8.2.3
+pyyaml==6.0.1
+boto3==1.34.0

@@ -1,0 +1,122 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: edgar
+      POSTGRES_USER: edgar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edgar_dev_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edgar"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rss_poller:
+    build:
+      context: .
+      dockerfile: services/rss_poller/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      EDGAR_USER_AGENT: ${EDGAR_USER_AGENT:-EDGAR Platform dev@example.com}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - raw_data:/data/raw
+    restart: unless-stopped
+
+  parser:
+    build:
+      context: .
+      dockerfile: services/parser/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://edgar:${POSTGRES_PASSWORD:-edgar_dev_password}@postgres:5432/edgar
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - raw_data:/data/raw
+    restart: unless-stopped
+
+  enrichment:
+    build:
+      context: .
+      dockerfile: services/enrichment/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://edgar:${POSTGRES_PASSWORD:-edgar_dev_password}@postgres:5432/edgar
+      EDGAR_USER_AGENT: ${EDGAR_USER_AGENT:-EDGAR Platform dev@example.com}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://edgar:${POSTGRES_PASSWORD:-edgar_dev_password}@postgres:5432/edgar
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  reconciliation:
+    build:
+      context: .
+      dockerfile: services/reconciliation/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://edgar:${POSTGRES_PASSWORD:-edgar_dev_password}@postgres:5432/edgar
+      EDGAR_USER_AGENT: ${EDGAR_USER_AGENT:-EDGAR Platform dev@example.com}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - raw_data:/data/raw
+    profiles:
+      - reconciliation
+
+volumes:
+  postgres_data:
+  redis_data:
+  raw_data:
