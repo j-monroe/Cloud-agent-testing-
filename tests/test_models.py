@@ -1,7 +1,7 @@
 """Tests for shared Pydantic models."""
 import json
 import pytest
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from shared.models import RawFiling, QueueMessage, FilingStatus, CompanyMetadata
 
 
@@ -85,7 +85,7 @@ def test_enriched_filing_defaults():
         filing_date=date(2024, 1, 15),
         filing_url="https://sec.gov/",
         source="rss",
-        ingested_at=datetime.utcnow(),
+        ingested_at=datetime.now(timezone.utc),
     )
     assert ef.status == FilingStatus.ENRICHED
     assert ef.company_metadata is None

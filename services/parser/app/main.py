@@ -10,7 +10,7 @@ import os
 import re
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -23,7 +23,7 @@ from shared.models import QueueMessage, RawFiling, FilingStatus
 from shared.queue import StreamQueueClient
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import Column, String, Date, DateTime, Text, Enum as SAEnum, UniqueConstraint, select
+from sqlalchemy import Column, String, Date, DateTime, Text, Enum as SAEnum, UniqueConstraint, select, text
 from sqlalchemy.orm import DeclarativeBase
 
 logger = get_logger("parser")
@@ -60,7 +60,7 @@ class FilingRecord(Base):
     status = Column(SAEnum(FilingStatus), default=FilingStatus.PARSED, nullable=False)
     raw_storage_path = Column(Text)
     ingested_at = Column(DateTime, nullable=False)
-    parsed_at = Column(DateTime, default=datetime.utcnow)
+    parsed_at = Column(DateTime, server_default=text("NOW()"))
     enriched_at = Column(DateTime)
 
     __table_args__ = (
@@ -162,7 +162,7 @@ class ParserService:
                         status=FilingStatus.PARSED,
                         raw_storage_path=storage_path,
                         ingested_at=filing.ingested_at,
-                        parsed_at=datetime.utcnow(),
+                        parsed_at=datetime.now(timezone.utc),
                     )
                     session.add(record)
                     logger.info(

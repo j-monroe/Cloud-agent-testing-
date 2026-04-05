@@ -2,10 +2,14 @@
 from __future__ import annotations
 import enum
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional, Dict, Any, List
 
 from pydantic import BaseModel, Field, field_validator
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # ── Enums ────────────────────────────────────────────────────────────────────
@@ -29,7 +33,7 @@ class RawFiling(BaseModel):
     filing_url: str
     source: str = Field(..., description="rss | index | fallback")
     raw_content: Optional[str] = None
-    ingested_at: datetime = Field(default_factory=datetime.utcnow)
+    ingested_at: datetime = Field(default_factory=_utcnow)
 
     @field_validator("accession_number")
     @classmethod
@@ -56,7 +60,7 @@ class CompanyMetadata(BaseModel):
     state_of_incorporation: Optional[str] = None
     fiscal_year_end: Optional[str] = None
     addresses: Dict[str, Any] = {}
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    fetched_at: datetime = Field(default_factory=_utcnow)
 
 
 class EnrichedFiling(BaseModel):
@@ -89,4 +93,4 @@ class QueueMessage(BaseModel):
     event_type: str
     payload: Dict[str, Any]
     retry_count: int = 0
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utcnow)

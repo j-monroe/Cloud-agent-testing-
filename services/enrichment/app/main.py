@@ -9,7 +9,7 @@ import os
 import re
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import httpx
@@ -66,8 +66,8 @@ class CompanyRecord(Base):
     state_of_incorporation = Column(String(10))
     fiscal_year_end = Column(String(10))
     addresses = Column(JSON, default=dict)
-    fetched_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    fetched_at = Column(DateTime, server_default=text("NOW()"))
+    updated_at = Column(DateTime, server_default=text("NOW()"), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class EnrichmentService:
@@ -213,7 +213,7 @@ class EnrichmentService:
                     existing.exchanges = metadata.exchanges
                     existing.sic = metadata.sic
                     existing.sic_description = metadata.sic_description
-                    existing.updated_at = datetime.utcnow()
+                    existing.updated_at = datetime.now(timezone.utc)
 
     async def _update_filing_status(self, accession_number: str) -> None:
         assert self._sessionmaker
@@ -224,7 +224,7 @@ class EnrichmentService:
                         "UPDATE filings SET status='enriched', enriched_at=:now "
                         "WHERE accession_number=:acc"
                     ),
-                    {"now": datetime.utcnow(), "acc": accession_number},
+                    {"now": datetime.now(timezone.utc), "acc": accession_number},
                 )
 
     async def _process_message(self, msg_id: str, message: QueueMessage) -> None:
