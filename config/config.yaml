@@ -1,0 +1,40 @@
+edgar:
+  user_agent: "${EDGAR_USER_AGENT:-EDGAR Platform edgar@example.com}"
+  rss_feeds:
+    - url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=&dateb=&owner=include&count=40&search_text=&output=atom"
+      name: "all_current"
+    - url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=D&dateb=&owner=include&count=40&search_text=&output=atom"
+      name: "form_d"
+    - url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&dateb=&owner=include&count=40&search_text=&output=atom"
+      name: "form_8k"
+  rate_limit:
+    requests_per_second: 8
+    burst: 10
+  poll_interval_seconds: 120
+  index_base_url: "https://www.sec.gov/Archives/edgar/full-index"
+  data_api_base: "https://data.sec.gov"
+
+queue:
+  stream_name: "edgar:filings:raw"
+  enrichment_stream: "edgar:filings:parsed"
+  consumer_group: "edgar-processors"
+  dead_letter_stream: "edgar:filings:dlq"
+  max_retry: 3
+
+storage:
+  raw_prefix: "raw/filings"
+  use_s3: false
+  local_path: "/data/raw"
+
+api:
+  title: "EDGAR Filing Intelligence API"
+  version: "1.0.0"
+  description: "Query and analyze SEC EDGAR filings"
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+
+reconciliation:
+  schedule_cron: "0 2 * * *"
+  lookback_days: 7
+  batch_size: 100
